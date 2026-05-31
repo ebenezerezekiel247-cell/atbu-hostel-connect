@@ -1,0 +1,2 @@
+- [ATBU Hostel Connect Architecture](atbu-architecture.md) — Full-stack campus app; Supabase is primary DB + Auth + Realtime; Express API uses service role client.
+- [Supabase SQL Schema](atbu-supabase-schema.md) — Schema location and key design decisions including room lock, reg_number uniqueness, notifications table.

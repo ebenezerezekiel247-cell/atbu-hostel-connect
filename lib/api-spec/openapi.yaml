@@ -1,0 +1,744 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: ATBU Hostel Connect API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: users
+    description: User profile operations
+  - name: channels
+    description: Chat channel operations
+  - name: messages
+    description: Chat message operations
+  - name: maintenance
+    description: Maintenance ticket operations
+  - name: marketplace
+    description: Marketplace listing operations
+  - name: sos
+    description: SOS / emergency operations
+  - name: stats
+    description: Dashboard summary statistics
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── USERS ─────────────────────────────────────────────────────────────────
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileInput"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  # ── CHANNELS ──────────────────────────────────────────────────────────────
+  /channels:
+    get:
+      operationId: listChannels
+      tags: [channels]
+      summary: List all chat channels
+      responses:
+        "200":
+          description: Channels list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Channel"
+    post:
+      operationId: createChannel
+      tags: [channels]
+      summary: Create a new channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelInput"
+      responses:
+        "201":
+          description: Created channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+
+  /channels/{id}:
+    get:
+      operationId: getChannel
+      tags: [channels]
+      summary: Get channel details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Channel details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "404":
+          description: Not found
+
+  # ── MESSAGES ──────────────────────────────────────────────────────────────
+  /channels/{channelId}/messages:
+    get:
+      operationId: getChannelMessages
+      tags: [messages]
+      summary: List messages in a channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Messages list (latest 50)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message to a channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  # ── MAINTENANCE ───────────────────────────────────────────────────────────
+  /maintenance:
+    get:
+      operationId: listMaintenanceTickets
+      tags: [maintenance]
+      summary: List maintenance tickets
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, in_progress, resolved, closed]
+        - name: hostel
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tickets list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MaintenanceTicket"
+    post:
+      operationId: createMaintenanceTicket
+      tags: [maintenance]
+      summary: Create a maintenance ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceTicketInput"
+      responses:
+        "201":
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceTicket"
+
+  /maintenance/{id}:
+    get:
+      operationId: getMaintenanceTicket
+      tags: [maintenance]
+      summary: Get a maintenance ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ticket details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceTicket"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateMaintenanceTicket
+      tags: [maintenance]
+      summary: Update ticket (status, notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceTicketUpdate"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceTicket"
+
+  /maintenance/stats:
+    get:
+      operationId: getMaintenanceStats
+      tags: [maintenance]
+      summary: Maintenance summary stats
+      responses:
+        "200":
+          description: Stats by status and category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceStats"
+
+  # ── MARKETPLACE ───────────────────────────────────────────────────────────
+  /listings:
+    get:
+      operationId: listListings
+      tags: [marketplace]
+      summary: List marketplace items
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema: { type: string }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [sell, buy, trade]
+      responses:
+        "200":
+          description: Listings list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+    post:
+      operationId: createListing
+      tags: [marketplace]
+      summary: Create a marketplace listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingInput"
+      responses:
+        "201":
+          description: Listing created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [marketplace]
+      summary: Get listing details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Listing details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateListing
+      tags: [marketplace]
+      summary: Update a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingUpdate"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+    delete:
+      operationId: deleteListing
+      tags: [marketplace]
+      summary: Delete a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+
+  /listings/featured:
+    get:
+      operationId: getFeaturedListings
+      tags: [marketplace]
+      summary: Get recent/featured listings
+      responses:
+        "200":
+          description: Featured listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+
+  # ── SOS ───────────────────────────────────────────────────────────────────
+  /sos:
+    post:
+      operationId: triggerSos
+      tags: [sos]
+      summary: Trigger an SOS emergency alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SosAlertInput"
+      responses:
+        "201":
+          description: SOS alert triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosAlert"
+
+  /sos/active:
+    get:
+      operationId: getActiveSosAlerts
+      tags: [sos]
+      summary: Get active SOS alerts (admin/reps only)
+      responses:
+        "200":
+          description: Active alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SosAlert"
+
+  /sos/{id}/resolve:
+    patch:
+      operationId: resolveSosAlert
+      tags: [sos]
+      summary: Mark SOS alert as resolved
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Resolved alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosAlert"
+
+  # ── STATS ─────────────────────────────────────────────────────────────────
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Top-level hostel dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+
+    # ── User ─────────────────────────────────────────────────────────────────
+    UserProfile:
+      type: object
+      required: [id, name, role, campus, hostel]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        role:
+          type: string
+          enum: [student, hostel_rep, admin]
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        hostel: { type: string }
+        roomNumber: { type: ["string", "null"] }
+        avatarUrl: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    UserProfileInput:
+      type: object
+      properties:
+        name: { type: string }
+        hostel: { type: string }
+        roomNumber: { type: string }
+        avatarUrl: { type: string }
+
+    # ── Channel ──────────────────────────────────────────────────────────────
+    Channel:
+      type: object
+      required: [id, name, type, campus]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        type:
+          type: string
+          enum: [general, hostel_rep, admin, hostel_specific]
+        campus:
+          type: string
+          enum: [gubi, yelwa, all]
+        hostel: { type: ["string", "null"] }
+        memberCount: { type: integer }
+        lastMessageAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    ChannelInput:
+      type: object
+      required: [name, type, campus]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        type:
+          type: string
+          enum: [general, hostel_rep, admin, hostel_specific]
+        campus:
+          type: string
+          enum: [gubi, yelwa, all]
+        hostel: { type: string }
+
+    # ── Message ──────────────────────────────────────────────────────────────
+    Message:
+      type: object
+      required: [id, channelId, senderId, content, createdAt]
+      properties:
+        id: { type: string }
+        channelId: { type: string }
+        senderId: { type: string }
+        senderName: { type: string }
+        senderRole: { type: string }
+        senderAvatarUrl: { type: ["string", "null"] }
+        content: { type: string }
+        createdAt: { type: string }
+
+    MessageInput:
+      type: object
+      required: [content, senderId]
+      properties:
+        content: { type: string }
+        senderId: { type: string }
+
+    # ── Maintenance ───────────────────────────────────────────────────────────
+    MaintenanceTicket:
+      type: object
+      required: [id, title, category, status, priority, hostel, campus, reportedBy, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        category:
+          type: string
+          enum: [plumbing, electrical, furniture, cleaning, security, other]
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        hostel: { type: string }
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        roomNumber: { type: ["string", "null"] }
+        reportedBy: { type: string }
+        reportedByName: { type: string }
+        assignedTo: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        imageUrl: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    MaintenanceTicketInput:
+      type: object
+      required: [title, category, priority, hostel, campus, reportedBy]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [plumbing, electrical, furniture, cleaning, security, other]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        hostel: { type: string }
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        roomNumber: { type: string }
+        reportedBy: { type: string }
+        imageUrl: { type: string }
+
+    MaintenanceTicketUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        assignedTo: { type: string }
+        notes: { type: string }
+
+    MaintenanceStats:
+      type: object
+      required: [total, open, inProgress, resolved, byCategory]
+      properties:
+        total: { type: integer }
+        open: { type: integer }
+        inProgress: { type: integer }
+        resolved: { type: integer }
+        byCategory:
+          type: array
+          items:
+            type: object
+            required: [category, count]
+            properties:
+              category: { type: string }
+              count: { type: integer }
+
+    # ── Marketplace ───────────────────────────────────────────────────────────
+    Listing:
+      type: object
+      required: [id, title, price, type, category, status, sellerId, campus, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        price: { type: number }
+        type:
+          type: string
+          enum: [sell, buy, trade]
+        category:
+          type: string
+          enum: [electronics, books, clothing, food, furniture, services, other]
+        status:
+          type: string
+          enum: [active, sold, withdrawn]
+        sellerId: { type: string }
+        sellerName: { type: string }
+        sellerHostel: { type: string }
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        imageUrl: { type: ["string", "null"] }
+        negotiable: { type: boolean }
+        contactInfo: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    ListingInput:
+      type: object
+      required: [title, price, type, category, sellerId, campus]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        price: { type: number }
+        type:
+          type: string
+          enum: [sell, buy, trade]
+        category:
+          type: string
+          enum: [electronics, books, clothing, food, furniture, services, other]
+        sellerId: { type: string }
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        imageUrl: { type: string }
+        negotiable: { type: boolean }
+        contactInfo: { type: string }
+
+    ListingUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        price: { type: number }
+        status:
+          type: string
+          enum: [active, sold, withdrawn]
+        imageUrl: { type: string }
+        negotiable: { type: boolean }
+        contactInfo: { type: string }
+
+    # ── SOS ───────────────────────────────────────────────────────────────────
+    SosAlert:
+      type: object
+      required: [id, userId, userName, hostel, campus, status, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        userName: { type: string }
+        hostel: { type: string }
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        roomNumber: { type: ["string", "null"] }
+        message: { type: ["string", "null"] }
+        status:
+          type: string
+          enum: [active, resolved]
+        resolvedAt: { type: ["string", "null"] }
+        resolvedBy: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    SosAlertInput:
+      type: object
+      required: [userId, hostel, campus]
+      properties:
+        userId: { type: string }
+        hostel: { type: string }
+        campus:
+          type: string
+          enum: [gubi, yelwa]
+        roomNumber: { type: string }
+        message: { type: string }
+
+    # ── Stats ─────────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [openTickets, activeListings, activeAlerts, channelCount, recentActivity]
+      properties:
+        openTickets: { type: integer }
+        activeListings: { type: integer }
+        activeAlerts: { type: integer }
+        channelCount: { type: integer }
+        recentActivity:
+          type: array
+          items:
+            type: object
+            required: [type, description, createdAt]
+            properties:
+              type: { type: string }
+              description: { type: string }
+              createdAt: { type: string }
