@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, MessageSquare, Wrench, ShoppingBag, ShieldAlert,
-  Menu, X, LogOut, User,
+  Menu, X, LogOut, Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,10 @@ const navItems = [
   { path: "/sos", label: "SOS", icon: ShieldAlert, danger: true },
 ];
 
+const adminNavItems = [
+  { path: "/admin", label: "Admin Panel", icon: Settings },
+];
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,8 +32,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const { data: activeAlerts } = useGetActiveSosAlerts();
   const alertCount = activeAlerts?.length ?? 0;
+  const isElevated = ["admin", "class_rep"].includes(user.role);
 
-  // Supabase Realtime — SOS broadcast to all logged-in clients
   useEffect(() => {
     if (!session) return;
 
@@ -67,7 +71,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
       <Link href={path}>
         <div
-          data-testid={`nav-${label.toLowerCase()}`}
+          data-testid={`nav-${label.toLowerCase().replace(" ", "-")}`}
           onClick={onClick}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-sm font-medium ${
             active
@@ -91,6 +95,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const allNavItems = isElevated ? [...navItems, ...adminNavItems] : navItems;
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Desktop sidebar */}
@@ -108,7 +114,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5" data-testid="sidebar-nav">
-          {navItems.map((item) => (
+          {allNavItems.map((item) => (
             <NavItem key={item.path} {...item} />
           ))}
         </nav>
@@ -120,7 +126,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</div>
-              <div className="text-xs text-muted-foreground">{campusLabel}</div>
+              <div className="text-xs text-muted-foreground capitalize">
+                {user.role === "class_rep" ? "Class Rep" : user.role === "admin" ? "Admin" : campusLabel}
+              </div>
             </div>
           </div>
           <button
@@ -170,7 +178,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               className="md:hidden fixed left-0 top-0 bottom-0 z-40 w-64 bg-sidebar border-r border-sidebar-border pt-14"
             >
               <nav className="px-3 py-4 space-y-0.5">
-                {navItems.map((item) => (
+                {allNavItems.map((item) => (
                   <NavItem
                     key={item.path}
                     {...item}

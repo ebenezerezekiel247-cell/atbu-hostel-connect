@@ -14,19 +14,25 @@ import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import ForgotPassword from "@/pages/forgot-password";
 import Onboarding from "@/pages/onboarding";
+import AdminCreate from "@/pages/admin-create";
+import AdminPanel from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/admin-create"];
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { session, profile, loading } = useAuthContext();
 
-  if (loading) {
+  const isPublic = PUBLIC_PATHS.includes(location);
+
+  const profilePending = !!session && !profile && !isPublic && location !== "/onboarding";
+
+  if (loading || profilePending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Spinner className="w-8 h-8 text-primary" />
@@ -34,10 +40,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const isPublic = PUBLIC_PATHS.includes(location);
-
   if (!session && !isPublic) return <Redirect to="/login" />;
-  if (session && isPublic) return <Redirect to="/" />;
+  if (session && isPublic && location !== "/admin-create") return <Redirect to="/" />;
   if (session && profile && !profile.onboardingComplete && location !== "/onboarding") {
     return <Redirect to="/onboarding" />;
   }
@@ -52,6 +56,7 @@ function AppRoutes() {
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
         <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/admin-create" component={AdminCreate} />
         <Route path="/onboarding" component={Onboarding} />
         <Route>
           <Layout>
@@ -61,6 +66,7 @@ function AppRoutes() {
               <Route path="/maintenance" component={Maintenance} />
               <Route path="/marketplace" component={Marketplace} />
               <Route path="/sos" component={Sos} />
+              <Route path="/admin" component={AdminPanel} />
               <Route component={NotFound} />
             </Switch>
           </Layout>

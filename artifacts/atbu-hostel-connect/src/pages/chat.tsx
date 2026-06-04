@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Hash, Lock, Shield, Building2, MessageSquare } from "lucide-react";
+import { Send, Hash, Lock, Shield, Building2, MessageSquare, ChevronLeft, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,15 @@ function ChannelItem({ channel, active, onClick }: { channel: Channel; active: b
   );
 }
 
-function MessagesPane({ channelId, channelName }: { channelId: string; channelName: string }) {
+function MessagesPane({
+  channelId,
+  channelName,
+  onBackToChannels,
+}: {
+  channelId: string;
+  channelName: string;
+  onBackToChannels: () => void;
+}) {
   const user = useCurrentUser();
   const qc = useQueryClient();
   const { data: messages, isLoading } = useGetChannelMessages(channelId, {
@@ -87,15 +95,23 @@ function MessagesPane({ channelId, channelName }: { channelId: string; channelNa
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border shrink-0">
+      <div className="px-4 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
-          <Hash className="w-4 h-4 text-muted-foreground" />
-          <h2 className="font-semibold text-foreground">{channelName}</h2>
+          {/* Back button — only visible on mobile */}
+          <button
+            onClick={onBackToChannels}
+            className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0"
+            aria-label="Back to channels"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <Hash className="w-4 h-4 text-muted-foreground shrink-0" />
+          <h2 className="font-semibold text-foreground truncate">{channelName}</h2>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className={`flex gap-3 ${i % 2 === 1 ? "flex-row-reverse" : ""}`}>
@@ -121,7 +137,7 @@ function MessagesPane({ channelId, channelName }: { channelId: string; channelNa
                   <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                     {msg.senderName.charAt(0)}
                   </div>
-                  <div className={`max-w-xs lg:max-w-md ${isMine ? "items-end" : "items-start"} flex flex-col`}>
+                  <div className={`max-w-[75%] lg:max-w-md ${isMine ? "items-end" : "items-start"} flex flex-col`}>
                     <div className={`flex items-center gap-1.5 mb-1 ${isMine ? "flex-row-reverse" : ""}`}>
                       <span className="text-xs font-medium text-foreground">{msg.senderName}</span>
                       <span className="text-xs text-muted-foreground capitalize">{msg.senderRole.replace("_", " ")}</span>
@@ -154,7 +170,7 @@ function MessagesPane({ channelId, channelName }: { channelId: string; channelNa
       </div>
 
       {/* Input */}
-      <div className="px-5 py-4 border-t border-border shrink-0">
+      <div className="px-4 py-4 border-t border-border shrink-0">
         <div className="flex gap-2">
           <Input
             data-testid="message-input"
@@ -182,14 +198,29 @@ function MessagesPane({ channelId, channelName }: { channelId: string; channelNa
 export default function Chat() {
   const { data: channels, isLoading } = useListChannels();
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Mobile: "channels" shows the sidebar, "messages" shows the chat
+  const [mobilePane, setMobilePane] = useState<"channels" | "messages">("channels");
 
   const activeChannel = channels?.find(c => c.id === activeId) ?? channels?.[0];
 
+  const handleChannelClick = (id: string) => {
+    setActiveId(id);
+    setMobilePane("messages");
+  };
+
   return (
-    <div className="h-full flex" data-testid="chat-page">
-      {/* Channel list */}
-      <aside className="w-64 shrink-0 border-r border-border flex flex-col">
-        <div className="px-4 py-4 border-b border-border">
+    <div className="h-full flex overflow-hidden" data-testid="chat-page">
+      {/* Channel sidebar
+          Desktop: always visible (w-64, border-r)
+          Mobile: full-width when mobilePane === "channels", hidden otherwise */}
+      <aside
+        className={`
+          border-r border-border flex flex-col
+          md:flex md:w-64 md:shrink-0
+          ${mobilePane === "channels" ? "flex w-full" : "hidden"}
+        `}
+      >
+        <div className="px-4 py-4 border-b border-border shrink-0">
           <h1 className="font-bold text-foreground">Channels</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Campus communication hub</p>
         </div>
@@ -206,22 +237,34 @@ export default function Chat() {
                   key={ch.id}
                   channel={ch}
                   active={(activeChannel?.id ?? channels?.[0]?.id) === ch.id}
-                  onClick={() => setActiveId(ch.id)}
+                  onClick={() => handleChannelClick(ch.id)}
                 />
               ))}
         </div>
       </aside>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-hidden">
+      {/* Messages pane
+          Desktop: always visible (flex-1)
+          Mobile: full-width when mobilePane === "messages", hidden otherwise */}
+      <div
+        className={`
+          flex-1 overflow-hidden
+          ${mobilePane === "messages" ? "flex flex-col" : "hidden md:block"}
+        `}
+      >
         {activeChannel ? (
-          <MessagesPane channelId={activeChannel.id} channelName={activeChannel.name} />
+          <MessagesPane
+            channelId={activeChannel.id}
+            channelName={activeChannel.name}
+            onBackToChannels={() => setMobilePane("channels")}
+          />
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <MessageSquare className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">Select a channel to start chatting</p>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full">
+            <Menu className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3 md:hidden" />
+            <MessageSquare className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3 hidden md:block" />
+            <p className="text-muted-foreground text-sm">
+              {isLoading ? "Loading channels..." : "Select a channel to start chatting"}
+            </p>
           </div>
         )}
       </div>

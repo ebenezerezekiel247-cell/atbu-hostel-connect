@@ -7,6 +7,7 @@ import maintenanceRouter from "./maintenance";
 import marketplaceRouter from "./marketplace";
 import sosRouter from "./sos";
 import statsRouter from "./stats";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(maintenanceRouter);
 router.use(marketplaceRouter);
 router.use(sosRouter);
 router.use(statsRouter);
+router.use(adminRouter);
 
 export default router;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, ShieldCheck, AlertTriangle, CheckCircle, Clock, Phone, Info } from "lucide-react";
+import { ShieldAlert, ShieldCheck, AlertTriangle, CheckCircle, Clock, Phone, Info, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +12,9 @@ import {
   useResolveSosAlert,
   getGetActiveSosAlertsQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useAuthContext } from "@/context/auth-context";
 
 const safetyTips = [
   "Stay calm and remain in your room if possible",
@@ -25,14 +26,36 @@ const safetyTips = [
 
 export default function Sos() {
   const user = useCurrentUser();
+  const { session } = useAuthContext();
   const qc = useQueryClient();
   const [triggered, setTriggered] = useState(false);
   const [message, setMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const isElevated = ["admin", "class_rep"].includes(user.role);
+  const token = session?.access_token ?? "";
 
   const triggerSos = useTriggerSos();
   const resolveSos = useResolveSosAlert();
   const { data: activeAlerts, isLoading: alertsLoading } = useGetActiveSosAlerts();
+
+  const deleteSos = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/sos/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to delete alert");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: getGetActiveSosAlertsQueryKey() });
+      setConfirmDeleteId(null);
+    },
+  });
 
   const handleTrigger = () => {
     triggerSos.mutate(
@@ -65,10 +88,11 @@ export default function Sos() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto" data-testid="sos-page">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">SOS Emergency</h1>
-        <p className="text-muted-foreground text-sm mt-1">For emergencies requiring immediate campus security response</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          For emergencies requiring immediate campus security response
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -174,7 +198,8 @@ export default function Sos() {
                       Press the button above to alert campus security
                     </p>
                     <div className="mt-4 text-xs text-muted-foreground/70 bg-muted/50 rounded-lg px-4 py-2">
-                      Location: {user.hostel}, Room {user.roomNumber} · {user.campus === "gubi" ? "Gubi" : "Yelwa"} Campus
+                      Location: {user.hostel}, Room {user.roomNumber} ·{" "}
+                      {user.campus === "gubi" ? "Gubi" : "Yelwa"} Campus
                     </div>
                   </motion.div>
                 )}
@@ -207,9 +232,12 @@ export default function Sos() {
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">Active Alerts</h2>
-            {activeAlerts && activeAlerts.length > 0 && (
-              <Badge variant="destructive" className="text-xs">{activeAlerts.length}</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground/60">Last 3 days</span>
+              {activeAlerts && activeAlerts.length > 0 && (
+                <Badge variant="destructive" className="text-xs">{activeAlerts.length}</Badge>
+              )}
+            </div>
           </div>
           {alertsLoading ? (
             <div className="space-y-3">
@@ -233,36 +261,78 @@ export default function Sos() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
                   >
-                    <Card data-testid={`alert-${alert.id}`} className="border border-red-200 bg-red-50/50 shadow-sm">
+                    <Card
+                      data-testid={`alert-${alert.id}`}
+                      className="border border-red-200 bg-red-50/50 shadow-sm"
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-2 mb-2">
                           <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                           <div>
                             <p className="text-sm font-semibold text-red-700">{alert.userName}</p>
                             <p className="text-xs text-red-600/80">
-                              {alert.hostel} {alert.roomNumber && `· Room ${alert.roomNumber}`}
+                              {alert.hostel}{alert.roomNumber && ` · Room ${alert.roomNumber}`}
                             </p>
                           </div>
                         </div>
                         {alert.message && (
-                          <p className="text-xs text-foreground bg-white/60 rounded px-2.5 py-1.5 mb-2 border border-red-100">{alert.message}</p>
+                          <p className="text-xs text-foreground bg-white/60 rounded px-2.5 py-1.5 mb-2 border border-red-100">
+                            {alert.message}
+                          </p>
                         )}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="w-3 h-3" />
-                            {new Date(alert.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(alert.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
-                          {user.role !== "student" && (
-                            <Button
-                              data-testid={`resolve-alert-${alert.id}`}
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
-                              onClick={() => handleResolve(alert.id)}
-                              disabled={resolveSos.isPending}
-                            >
-                              Resolve
-                            </Button>
+                          {isElevated && (
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                data-testid={`resolve-alert-${alert.id}`}
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                                onClick={() => handleResolve(alert.id)}
+                                disabled={resolveSos.isPending}
+                              >
+                                Resolve
+                              </Button>
+                              {confirmDeleteId === alert.id ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 text-xs"
+                                    disabled={deleteSos.isPending}
+                                    onClick={() => deleteSos.mutate(alert.id)}
+                                  >
+                                    {deleteSos.isPending ? "Deleting..." : "Confirm Fake"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  data-testid={`delete-alert-${alert.id}`}
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs border-red-300 text-red-600 hover:bg-red-50"
+                                  onClick={() => setConfirmDeleteId(alert.id)}
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  Fake
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </CardContent>
@@ -276,7 +346,7 @@ export default function Sos() {
               <CardContent className="py-10 text-center">
                 <ShieldCheck className="w-10 h-10 text-green-500/50 mx-auto mb-2" />
                 <p className="text-sm font-medium text-muted-foreground">All clear</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">No active alerts on campus</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">No active alerts in the last 3 days</p>
               </CardContent>
             </Card>
           )}
