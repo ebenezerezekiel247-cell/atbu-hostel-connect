@@ -59,14 +59,24 @@ export default function Signup() {
       }),
     });
 
+    const body = await res.json();
+
     if (!res.ok) {
-      const body = await res.json();
       setError(body.error ?? "Signup failed. Please try again.");
       setLoading(false);
       return;
     }
 
-    // Step 2 — sign in immediately (no email confirmation required)
+    // Email confirmation pending — tell the user
+    if (body.pending) {
+      setError(
+        "Almost there! Check your email for a confirmation link, then come back to sign in."
+      );
+      setLoading(false);
+      return;
+    }
+
+    // Step 2 — sign in immediately (email confirmation is disabled)
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
