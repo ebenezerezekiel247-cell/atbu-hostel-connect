@@ -135,12 +135,12 @@ function MessagesPane({
                   data-testid={`message-${msg.id}`}
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    {msg.senderName.charAt(0)}
+                    {msg.senderName?.charAt(0) ?? "?"}
                   </div>
                   <div className={`max-w-[75%] lg:max-w-md ${isMine ? "items-end" : "items-start"} flex flex-col`}>
                     <div className={`flex items-center gap-1.5 mb-1 ${isMine ? "flex-row-reverse" : ""}`}>
                       <span className="text-xs font-medium text-foreground">{msg.senderName}</span>
-                      <span className="text-xs text-muted-foreground capitalize">{msg.senderRole.replace("_", " ")}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{msg.senderRole?.replace("_", " ")}</span>
                     </div>
                     <div
                       className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
