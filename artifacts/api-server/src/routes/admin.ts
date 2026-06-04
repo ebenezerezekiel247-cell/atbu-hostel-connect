@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { supabase } from "../lib/supabase";
 
 const router = Router();
@@ -20,7 +20,7 @@ function toUser(u: Record<string, unknown>) {
   };
 }
 
-async function requireAdmin(req: Parameters<Parameters<typeof router.use>[0]>[0], res: Parameters<Parameters<typeof router.use>[0]>[1]) {
+async function requireAdmin(req: Request, res: Response) {
   const auth = req.headers.authorization;
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return null; }
   const token = auth.replace("Bearer ", "");
