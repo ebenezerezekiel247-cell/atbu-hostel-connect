@@ -63,7 +63,7 @@ export default function Sos() {
         data: {
           userId: user.id,
           hostel: user.hostel,
-          campus: user.campus,
+          campus: user.campus as "gubi" | "yelwa",
           roomNumber: user.roomNumber ?? undefined,
           message: message || undefined,
         },
