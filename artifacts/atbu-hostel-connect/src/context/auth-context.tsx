@@ -44,17 +44,17 @@ function mapProfile(raw: Record<string, unknown>): UserProfile {
   };
 }
 
-async function fetchProfileFromApi(
-  userId: string,
-  token: string
+async function fetchProfileFromSupabase(
+  userId: string
 ): Promise<UserProfile | null> {
   try {
-    const res = await fetch(`/api/users/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return mapProfile(data);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    if (error || !data) return null;
+    return mapProfile(data as Record<string, unknown>);
   } catch {
     return null;
   }
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadProfile = async (sess: Session) => {
-    const p = await fetchProfileFromApi(sess.user.id, sess.access_token);
+    const p = await fetchProfileFromSupabase(sess.user.id);
     setProfile(p);
   };
 
