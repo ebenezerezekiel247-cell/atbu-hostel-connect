@@ -47,48 +47,68 @@ export default function Signup() {
 
     setLoading(true);
 
-    // Step 1 — create account via backend (uses admin API, no email confirmation needed)
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        email: form.email,
-        password: form.password,
-        regNumber: form.regNumber.toUpperCase(),
-      }),
-    });
-
-    const body = await res.json();
-
-    if (!res.ok) {
-      setError(body.error ?? "Signup failed. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    // Email confirmation pending — tell the user
-    if (body.pending) {
-      setError(
-        "Almost there! Check your email for a confirmation link, then come back to sign in."
-      );
-      setLoading(false);
-      return;
-    }
-
-    // Step 2 — sign in immediately (email confirmation is disabled)
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // Step 1 — create Supabase auth account
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
+      options: { data: { name: form.name } },
     });
 
-    if (signInError) {
-      setError(signInError.message);
+    if (authError) {
+      setError(authError.message);
       setLoading(false);
       return;
     }
 
-    setLocation("/onboarding");
+    if (!authData.user) {
+      setError("Signup failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Duplicate email — Supabase returns a fake user with no identities
+    if ((authData.user.identities ?? []).length === 0) {
+      setError("An account with this email already exists.");
+      setLoading(false);
+      return;
+    }
+
+    // Step 2 — create the user profile row
+    const { error: profileError } = await supabase.from("users").insert({
+      id: authData.user.id,
+      name: form.name,
+      email: form.email,
+      reg_number: form.regNumber.toUpperCase(),
+      role: "student",
+      campus: null,
+      hostel: null,
+      room_number: null,
+      onboarding_complete: false,
+    });
+
+    if (profileError) {
+      // Clean up the auth account so the user can retry
+      await supabase.auth.signOut();
+      if (profileError.code === "23505") {
+        setError("Registration number already in use by another account.");
+      } else {
+        setError(profileError.message);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // If email confirmation is disabled, session is already active → go to onboarding
+    if (authData.session) {
+      setLocation("/onboarding");
+      return;
+    }
+
+    // Email confirmation is enabled → tell the user to check their inbox
+    setError(
+      "Almost there! Check your email for a confirmation link, then come back to sign in."
+    );
+    setLoading(false);
   };
 
   return (
