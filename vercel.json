@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm --filter @workspace/atbu-hostel-connect run build",
-  "outputDirectory": "artifacts/atbu-hostel-connect/dist/public",
+  "outputDirectory": "artifacts/atbu-hostel-connect/dist",
   "framework": null,
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
